@@ -15,6 +15,7 @@
     "next": "16.1.4",
     "perfect-freehand": "^1.2.2",
     "react": "19.2.3",
+    "react-dnd-touch-backend": "^16.0.1",
     "react-dom": "19.2.3",
     "react-easy-crop": "^5.5.6",
     "react-rnd": "^10.5.2"

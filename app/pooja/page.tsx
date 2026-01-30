@@ -1,12 +1,23 @@
-export default function Pooja() {
-  return (
-    <main className="min-h-screen px-6 py-20 text-center">
-      <h1 className="text-4xl font-bold mb-4">Pooja & Rituals</h1>
+"use client";
+import Image from "next/image";
 
-      <p className="text-gray-600 max-w-2xl mx-auto">
-        Complete arrangements for poojas, festivals and rituals —
-        decor, flowers, items and traditional setups.
-      </p>
+export default function Pooja() {
+  // This is where you will add your list from the Word document later
+  const poojaItems = ["Ganapathi Pooja Kit", "Flowers & Garlands", "Homa Samagri", "Traditional Decor"];
+
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-white to-yellow-50 px-6 py-12 flex flex-col items-center">
+      <Image src="/logo.png" alt="Logo" width={120} height={120} className="mb-6" />
+      <h1 className="text-4xl font-black text-[#2B5797] mb-4">Pooja & Rituals</h1>
+      
+      <div className="w-full max-w-2xl mt-10 space-y-4">
+        {poojaItems.map((item) => (
+          <div key={item} className="flex items-center justify-between p-5 bg-white rounded-xl shadow-sm border-l-4 border-yellow-400">
+            <span className="font-semibold text-gray-700">{item}</span>
+            <button className="text-xs bg-yellow-400 px-4 py-2 rounded-full font-bold">Book Arrangement</button>
+          </div>
+        ))}
+      </div>
     </main>
   );
 }
