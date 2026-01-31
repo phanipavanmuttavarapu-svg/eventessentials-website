@@ -1,36 +1,22 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Great_Vibes, Montserrat } from "next/font/google";
 import "./globals.css";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const greatVibes = Great_Vibes({ weight: '400', subsets: ["latin"], variable: "--font-great-vibes" });
+const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-montserrat" });
 
 export const metadata: Metadata = {
-  title: {
-    template: '%s | EventEssentials',
-    default: 'EventEssentials',
-  },
-  description: 'Decor, Catering, Photography, Sangeet, and Ritual Planning.',
-  // Explicitly setting logo.png as the source for all tab icons
-  icons: {
-    icon: '/logo.png',
-    shortcut: '/logo.png',
-    apple: '/logo.png',
-  },
+  title: { template: '%s | EventEssentials', default: 'EventEssentials' },
+  description: 'Your Partner in Every Celebration',
+  icons: { icon: '/logo.png' }, // Replaces Vercel arrow with your logo
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${greatVibes.variable} ${montserrat.variable} antialiased font-[family-name:var(--font-montserrat)]`}>
         {children}
-        
-        {/* Global WhatsApp button */}
         <WhatsAppButton />
       </body>
     </html>
