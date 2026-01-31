@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function Catering() {
   const [city, setCity] = useState("");
@@ -27,13 +28,12 @@ export default function Catering() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-orange-50 px-6 py-12 flex flex-col items-center">
-      <title>Catering | EventEssentials</title>
-      <Image src="/logo.png" alt="Logo" width={120} height={120} className="mb-6" />
+      <title>Catering</title>
+      <Link href="/">
+        <Image src="/logo.png" alt="Home" width={100} height={100} className="mb-6 cursor-pointer hover:scale-105 transition" />
+      </Link>
       <h1 className="text-4xl font-black text-[#2B5797] mb-4">Find Local Catering</h1>
-      <p className="text-gray-600 max-w-2xl text-center mb-8 italic">
-        Delicious menus and buffet setups for your celebration in {city || 'your city'}.
-      </p>
-
+      
       <div className="w-full max-w-md flex gap-2 mb-12">
         <input 
           type="text" 
@@ -43,23 +43,19 @@ export default function Catering() {
           onChange={(e) => setCity(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && searchCatering()}
         />
-        <button 
-          onClick={searchCatering}
-          disabled={!API_KEY || !CX}
-          className="bg-orange-500 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-orange-600 transition disabled:opacity-50"
-        >
+        <button onClick={searchCatering} className="bg-orange-500 text-white px-6 py-3 rounded-full font-bold shadow-lg">
           {loading ? "Searching..." : "Search"}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl text-left">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl text-left text-gray-800">
         {results.map((item: any, index) => (
           <div key={index} className="p-6 bg-white rounded-2xl shadow-md border border-orange-100 hover:shadow-xl transition flex flex-col justify-between">
             <div>
-              <h3 className="font-bold text-lg text-gray-800 mb-2 leading-tight">{item.title}</h3>
+              <h3 className="font-bold text-lg mb-2 leading-tight">{item.title}</h3>
               <p className="text-sm text-gray-500 line-clamp-3 mb-4">{item.snippet}</p>
             </div>
-            <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-orange-600 font-bold text-sm hover:underline mt-2 flex items-center gap-1">
+            <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-orange-600 font-bold text-sm hover:underline">
               View Details →
             </a>
           </div>

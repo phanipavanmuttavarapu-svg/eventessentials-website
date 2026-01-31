@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Decor() {
   const [query, setQuery] = useState("");
@@ -33,25 +34,29 @@ export default function Decor() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-purple-50 px-6 py-12 flex flex-col items-center">
-      <title>Event Decor | EventEssentials</title>
-      <Image src="/logo.png" alt="Logo" width={120} height={120} className="mb-6" />
-      <h1 className="text-4xl font-black text-[#2B5797] mb-2">Event Decor Inspiration</h1>
+      <title>Event Decor</title>
+      <Link href="/">
+        <Image src="/logo.png" alt="Home" width={100} height={100} className="mb-6 cursor-pointer hover:scale-105 transition" />
+      </Link>
+      <h1 className="text-4xl font-black text-[#2B5797] mb-2 text-center">Decor Inspiration</h1>
       
       <div className="w-full max-w-2xl flex gap-2 my-8">
         <input 
           type="text" 
           placeholder="Search e.g., Wedding Stage Marigold..." 
-          className="flex-1 px-5 py-3 rounded-full border-2 border-purple-200 focus:border-purple-500 outline-none shadow-sm"
+          className="flex-1 px-5 py-3 rounded-full border-2 border-purple-200 focus:border-purple-500 outline-none shadow-sm text-gray-700"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && searchImages()}
         />
         <button onClick={searchImages} className="bg-purple-600 text-white px-8 py-3 rounded-full font-bold hover:bg-purple-700 transition">
-          {loading ? "Searching..." : "Search"}
+          {loading ? "..." : "Search"}
         </button>
       </div>
 
-      <a href="/decor/designer" className="mb-10 text-purple-600 font-bold hover:underline">Go to Designer →</a>
+      <a href="/decor/designer" className="mb-10 text-purple-600 font-bold hover:underline flex items-center gap-2">
+        Go to Visual Designer →
+      </a>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 w-full max-w-6xl">
         {images.map((img: any, index) => (
