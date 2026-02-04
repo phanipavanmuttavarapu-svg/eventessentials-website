@@ -2,53 +2,37 @@
 import Image from "next/image";
 import { useState } from "react";
 import Link from "next/link";
+import { unifiedSearchAction } from "../actions"; 
 
 export default function Shopping() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Using the NEXT_PUBLIC_ prefix for Vercel visibility
-  const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || "";
-  const CX = process.env.NEXT_PUBLIC_GOOGLE_CX || "";
-
   const searchShopping = async (category: string) => {
     const term = category || query;
-    
-    // Safety check for live environment
-    if (!API_KEY || !CX) {
-      alert("System Error: API Keys are not detected. Please redeploy on Vercel.");
-      return;
-    }
     if (!term) return;
 
     setLoading(true);
     try {
-      const res = await fetch(
-        `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${CX}&q=${encodeURIComponent(term + " wedding shopping india")}&num=8`
-      );
-      const data = await res.json();
-      
-      if (data.error) {
-        alert(`Google API Error: ${data.error.message}`);
-      } else {
-        setResults(data.items || []);
-      }
+      // Updated with your actual Data Store ID
+      const fullQuery = `${term} wedding shopping india`;
+      const data = await unifiedSearchAction(fullQuery, 'eventessentials-search-data_1770226189786', false);
+      setResults(data);
     } catch (e) { 
       console.error(e); 
+      alert("System Error: Search failed.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-pink-50 px-6 py-12 flex flex-col items-center text-center font-[family-name:var(--font-montserrat)]">
       <title>Event Shopping | EventEssentials</title>
-      
-      {/* Home Navigation Feature */}
       <Link href="/">
         <Image src="/logo.png" alt="Home" width={120} height={120} className="mb-6 cursor-pointer hover:scale-105 transition" />
       </Link>
-      
       <h1 className="text-4xl font-black text-[#2B5797] mb-8">Shop the Essentials</h1>
       
       <div className="flex gap-3 flex-wrap justify-center mb-8">

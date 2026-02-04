@@ -2,41 +2,27 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { unifiedSearchAction } from "../actions"; 
 
 export default function Decor() {
   const [query, setQuery] = useState("");
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Environment variables with NEXT_PUBLIC_ prefix for Vercel
-  const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || "";
-  const CX = process.env.NEXT_PUBLIC_GOOGLE_CX || "";
-
   const searchImages = async () => {
-    // Alert if keys are missing on the live site
-    if (!API_KEY || !CX) {
-      alert("Search is currently unavailable. Please check Vercel Environment Variables.");
-      return;
-    }
     if (!query) return;
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${CX}&q=${encodeURIComponent(query)}&searchType=image&num=8`
-      );
-      const data = await response.json();
-      
-      if (data.error) {
-        console.error("Google API Error:", data.error.message);
-        alert(`Search Error: ${data.error.message}`);
-      } else {
-        setImages(data.items || []);
-      }
+      // Updated with your actual Data Store ID and enabled image search
+      const results = await unifiedSearchAction(query, 'eventessentials-search-data_1770226189786', true);
+      setImages(results);
     } catch (error) {
       console.error("Search failed", error);
+      alert("Search failed. Please check your configuration.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const addToDesigner = (imgUrl: string) => {
@@ -48,18 +34,9 @@ export default function Decor() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-purple-50 px-6 py-12 flex flex-col items-center">
       <title>Event Decor | EventEssentials</title>
-      
-      {/* Go to Home feature: Logo wrapped in Link */}
       <Link href="/">
-        <Image 
-          src="/logo.png" 
-          alt="Home" 
-          width={100} 
-          height={100} 
-          className="mb-6 cursor-pointer hover:scale-105 transition" 
-        />
+        <Image src="/logo.png" alt="Home" width={100} height={100} className="mb-6 cursor-pointer hover:scale-105 transition" />
       </Link>
-      
       <h1 className="text-4xl font-black text-[#2B5797] mb-2 text-center">Decor Inspiration</h1>
       
       <div className="w-full max-w-2xl flex gap-2 my-8">
