@@ -12,14 +12,24 @@ export default function Catering() {
   const CX = process.env.NEXT_PUBLIC_GOOGLE_CX || "";
 
   const searchCatering = async () => {
-    if (!city || !API_KEY || !CX) return;
+    if (!city) return;
+    if (!API_KEY || !CX) {
+      alert("Search keys not detected. Please verify Vercel settings.");
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch(
-        `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${CX}&q=best+catering+services+in+${city}&num=6`
+        `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${CX}&q=best+catering+services+in+${encodeURIComponent(city)}&num=6`
       );
       const data = await response.json();
-      setResults(data.items || []);
+      
+      if (data.error) {
+        alert(`Catering Search Error: ${data.error.message}`);
+      } else {
+        setResults(data.items || []);
+      }
     } catch (error) {
       console.error("Catering search failed", error);
     }
@@ -27,24 +37,26 @@ export default function Catering() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white to-orange-50 px-6 py-12 flex flex-col items-center">
-      <title>Catering</title>
+    <main className="min-h-screen bg-gradient-to-b from-white to-orange-50 px-6 py-12 flex flex-col items-center font-[family-name:var(--font-montserrat)]">
+      <title>Catering | EventEssentials</title>
+      
       <Link href="/">
         <Image src="/logo.png" alt="Home" width={100} height={100} className="mb-6 cursor-pointer hover:scale-105 transition" />
       </Link>
+      
       <h1 className="text-4xl font-black text-[#2B5797] mb-4">Find Local Catering</h1>
       
       <div className="w-full max-w-md flex gap-2 mb-12">
         <input 
           type="text" 
           placeholder="Enter your city (e.g. Hyderabad)" 
-          className="flex-1 px-4 py-3 border-2 border-orange-200 rounded-full focus:outline-none focus:border-orange-500 shadow-sm"
+          className="flex-1 px-4 py-3 border-2 border-orange-200 rounded-full focus:outline-none focus:border-orange-500 shadow-sm text-gray-800"
           value={city}
           onChange={(e) => setCity(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && searchCatering()}
         />
         <button onClick={searchCatering} className="bg-orange-500 text-white px-6 py-3 rounded-full font-bold shadow-lg">
-          {loading ? "Searching..." : "Search"}
+          {loading ? "..." : "Search"}
         </button>
       </div>
 

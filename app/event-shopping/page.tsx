@@ -8,25 +8,47 @@ export default function Shopping() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Using the NEXT_PUBLIC_ prefix for Vercel visibility
   const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || "";
   const CX = process.env.NEXT_PUBLIC_GOOGLE_CX || "";
 
   const searchShopping = async (category: string) => {
     const term = category || query;
-    if (!term || !API_KEY || !CX) return;
+    
+    // Safety check for live environment
+    if (!API_KEY || !CX) {
+      alert("System Error: API Keys are not detected. Please redeploy on Vercel.");
+      return;
+    }
+    if (!term) return;
+
     setLoading(true);
     try {
-      const res = await fetch(`https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${CX}&q=${term}+wedding+shopping+india&num=8`);
+      const res = await fetch(
+        `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${CX}&q=${encodeURIComponent(term + " wedding shopping india")}&num=8`
+      );
       const data = await res.json();
-      setResults(data.items || []);
-    } catch (e) { console.error(e); }
+      
+      if (data.error) {
+        alert(`Google API Error: ${data.error.message}`);
+      } else {
+        setResults(data.items || []);
+      }
+    } catch (e) { 
+      console.error(e); 
+    }
     setLoading(false);
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white to-pink-50 px-6 py-12 flex flex-col items-center text-center">
-      <title>Event Shopping</title>
-      <Link href="/"><Image src="/logo.png" alt="Home" width={120} height={120} className="mb-6 cursor-pointer hover:scale-105 transition" /></Link>
+    <main className="min-h-screen bg-gradient-to-b from-white to-pink-50 px-6 py-12 flex flex-col items-center text-center font-[family-name:var(--font-montserrat)]">
+      <title>Event Shopping | EventEssentials</title>
+      
+      {/* Home Navigation Feature */}
+      <Link href="/">
+        <Image src="/logo.png" alt="Home" width={120} height={120} className="mb-6 cursor-pointer hover:scale-105 transition" />
+      </Link>
+      
       <h1 className="text-4xl font-black text-[#2B5797] mb-8">Shop the Essentials</h1>
       
       <div className="flex gap-3 flex-wrap justify-center mb-8">
@@ -36,7 +58,7 @@ export default function Shopping() {
       </div>
 
       <div className="w-full max-w-md flex gap-2 mb-12">
-        <input type="text" placeholder="Search for items..." className="flex-1 px-4 py-3 border-2 border-pink-200 rounded-full outline-none" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <input type="text" placeholder="Search for items..." className="flex-1 px-4 py-3 border-2 border-pink-200 rounded-full outline-none text-gray-800" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchShopping("")} />
         <button onClick={() => searchShopping("")} className="bg-pink-500 text-white px-8 py-3 rounded-full font-bold shadow-lg">{loading ? "..." : "Search"}</button>
       </div>
 
