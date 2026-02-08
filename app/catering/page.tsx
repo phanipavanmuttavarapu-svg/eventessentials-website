@@ -2,6 +2,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import Link from "next/link";
+import GlobalNav from "@/components/GlobalNav";
 
 export default function Catering() {
   const [city, setCity] = useState("");
@@ -37,14 +38,11 @@ export default function Catering() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white to-orange-50 px-6 py-12 flex flex-col items-center font-[family-name:var(--font-montserrat)]">
-      <title>Catering | EventEssentials</title>
-      
-      <Link href="/">
-        <Image src="/logo.png" alt="Home" width={100} height={100} className="mb-6 cursor-pointer hover:scale-105 transition" />
-      </Link>
-      
-      <h1 className="text-4xl font-black text-[#2B5797] mb-4">Find Local Catering</h1>
+    <main className="min-h-screen bg-gradient-to-b from-white to-orange-50">
+      <GlobalNav />
+      <section className="px-6 py-12 flex flex-col items-center">
+        <Link href="/" className="text-xs font-bold text-blue-600 hover:underline mb-4">← Dashboard</Link>
+        <h1 className="text-4xl font-black text-[#2B5797] mb-8">Find Local Catering</h1>
       
       <div className="w-full max-w-md flex gap-2 mb-12">
         <input 
@@ -73,6 +71,7 @@ export default function Catering() {
           </div>
         ))}
       </div>
+      </section>
     </main>
   );
 }

@@ -2,6 +2,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import Link from "next/link";
+import GlobalNav from "@/components/GlobalNav";
 
 export default function Photography() {
   const [query, setQuery] = useState("");
@@ -24,10 +25,11 @@ export default function Photography() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white to-blue-50 px-6 py-12 flex flex-col items-center">
-      <title>Photography</title>
-      <Link href="/"><Image src="/logo.png" alt="Home" width={120} height={120} className="mb-6 cursor-pointer hover:scale-105 transition" /></Link>
-      <h1 className="text-4xl font-black text-[#2B5797] mb-8">Photography & Cinema</h1>
+    <main className="min-h-screen bg-gradient-to-b from-white to-blue-50">
+      <GlobalNav />
+      <section className="px-6 py-12 flex flex-col items-center">
+        <Link href="/" className="text-xs font-bold text-blue-600 hover:underline mb-4">← Dashboard</Link>
+        <h1 className="text-4xl font-black text-[#2B5797] mb-8">Photography & Cinema</h1>
       
       <div className="flex gap-3 mb-8 flex-wrap justify-center">
         {['Candid', 'Traditional', 'Pre-Wedding', 'Cinematic'].map(s => (
@@ -44,6 +46,7 @@ export default function Photography() {
           </div>
         ))}
       </div>
+      </section>
     </main>
   );
 }
