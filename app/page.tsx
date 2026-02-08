@@ -3,34 +3,26 @@ import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-/**
- * EVENT ESSENTIALS - FINAL CONSOLIDATED BRANDING
- * Features:
- * - Restored Budget Management (Total Edit + Expense List)
- * - Gold Taglines for Services
- * - Header Mini-Summary & Manual Save
- * - Mobile Responsive UI
- */
-
 export default function Home() {
   const [tasks, setTasks] = useState<{ id: number; text: string; completed: boolean }[]>([]);
   const [newTaskText, setNewTaskText] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
-  const [totalBudget, setTotalBudget] = useState<number>(1000000);
+  const [totalBudget, setTotalBudget] = useState<number>(1000000); //
   const [expenses, setExpenses] = useState<{ id: number; name: string; amount: number }[]>([]);
   const [newExpenseName, setNewExpenseName] = useState("");
   const [newExpenseAmount, setNewExpenseAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [showInvitePreview, setShowInvitePreview] = useState(false);
   const [saveStatus, setSaveStatus] = useState("SAVE PLAN");
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Real-Time Analytics
   const totalSpent = useMemo(() => expenses.reduce((sum, item) => sum + item.amount, 0), [expenses]);
   const budgetRemaining = totalBudget - totalSpent;
   const progress = useMemo(() => tasks.length > 0 ? Math.round((tasks.filter(t => t.completed).length / tasks.length) * 100) : 0, [tasks]);
 
   useEffect(() => {
+    setIsMounted(true);
     setTasks(JSON.parse(localStorage.getItem("event_tasks") || "[]"));
     setEventDate(localStorage.getItem("event_date") || "");
     setTotalBudget(Number(localStorage.getItem("event_budget") || 1000000));
@@ -39,6 +31,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!isMounted) return;
     localStorage.setItem("event_tasks", JSON.stringify(tasks));
     localStorage.setItem("event_budget", totalBudget.toString());
     localStorage.setItem("event_expenses", JSON.stringify(expenses));
@@ -49,7 +42,7 @@ export default function Home() {
       const days = Math.ceil((new Date(eventDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
       setDaysRemaining(days >= 0 ? days : 0);
     }
-  }, [tasks, totalBudget, expenses, eventDate, notes]);
+  }, [tasks, totalBudget, expenses, eventDate, notes, isMounted]);
 
   const downloadPDFPlan = async () => {
     try {
@@ -59,7 +52,7 @@ export default function Home() {
       doc.text(`Budget Remaining: Rs. ${budgetRemaining.toLocaleString()}`, 20, 30);
       doc.save("Event_Plan.pdf");
     } catch (e) {
-      alert("PDF Module not found. Please run 'npm install jspdf'");
+      alert("Please ensure jspdf is installed: npm install jspdf");
     }
   };
 
@@ -97,29 +90,30 @@ export default function Home() {
                 <span className="text-[#C7337B] text-2xl md:text-4xl" style={{ fontFamily: "'Great Vibes', cursive" }}>Event</span>
                 <span className="text-[#1A73B5] text-xl md:text-2xl ml-1" style={{ fontFamily: "'Great Vibes', cursive" }}>Essentials</span>
               </h1>
-              <span className="text-[7px] md:text-[9px] font-bold uppercase tracking-[0.3em] text-[#1A2B3C]">Your Partner in Every Celebration</span>
+              <span className="text-[7px] md:text-[9px] font-bold uppercase tracking-[0.3em] text-[#1A2B3C]">THE GOLD STANDARD IN PLANNING</span>
             </div>
           </div>
 
           {/* Mini Summary */}
           <div className="hidden lg:flex items-center gap-6 px-6 border-l border-r border-gray-100">
             <div className="text-center">
-              <p className="text-[7px] font-bold text-gray-500 uppercase">DAYS LEFT</p>
+              <p className="text-[7px] font-bold text-gray-400 uppercase">DAYS LEFT</p>
               <p className="text-lg font-black text-[#E8A835]">{daysRemaining ?? '0'}</p>
             </div>
             <div className="text-center min-w-[100px]">
-              <p className="text-[7px] font-bold text-gray-500 uppercase">REMAINING</p>
-              <p className={`text-lg font-black ${budgetRemaining < 0 ? 'text-red-500' : 'text-[#C7337B]'}`}>₹{budgetRemaining.toLocaleString()}</p>
+              <p className="text-[7px] font-bold text-gray-400 uppercase">REMAINING</p>
+              <p className={`text-lg font-black ${budgetRemaining < 0 ? 'text-red-500' : 'text-[#C7337B]'}`}>
+                ₹{isMounted ? budgetRemaining.toLocaleString() : "1,000,000"}
+              </p>
             </div>
             <div className="text-center">
-              <p className="text-[7px] font-bold text-gray-500 uppercase">PROGRESS</p>
+              <p className="text-[7px] font-bold text-gray-400 uppercase">PROGRESS</p>
               <p className="text-lg font-black text-[#1A73B5]">{progress}%</p>
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex items-center gap-2 md:gap-4">
-            <button onClick={() => setShowInvitePreview(true)} className="text-[9px] font-bold uppercase text-[#1A2B3C] hover:text-[#C7337B] transition-colors">Preview Invite</button>
+            <button onClick={() => setShowInvitePreview(true)} className="text-[9px] font-bold uppercase text-[#1A2B3C] hover:text-[#C7337B]">Preview Invite</button>
             <button onClick={downloadPDFPlan} className="hidden md:block px-4 py-2 border-2 border-[#1A73B5] text-[#1A73B5] text-[8px] font-bold rounded-full hover:bg-[#1A73B5] hover:text-white transition-all">DOWNLOAD PDF</button>
             <button onClick={handleManualSave} className="px-4 py-2 border-2 border-[#1A2B3C] text-[#1A2B3C] text-[8px] font-bold rounded-full uppercase hover:bg-[#1A2B3C] hover:text-white transition-all">{saveStatus}</button>
             <button className="px-5 py-2.5 bg-[#1A73B5] text-white text-[8px] font-black rounded-full uppercase shadow-md">SIGN UP</button>
@@ -135,7 +129,7 @@ export default function Home() {
               <div className="w-14 h-14 flex items-center justify-center bg-gray-50 rounded-2xl text-3xl shadow-sm">{s.icon}</div>
               <div>
                 <h3 className="font-bold text-[#1A2B3C] text-sm">{s.title}</h3>
-                <p className="text-[11px] text-[#E8A835] font-semibold">{s.tagline}</p>
+                <p className="text-[11px] text-[#E8A835] font-semibold">{s.tagline}</p> {/* */}
               </div>
             </div>
           ))}
@@ -145,12 +139,11 @@ export default function Home() {
       {/* MAIN WORKSPACE GRID */}
       <section className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Task Management */}
         <div className="lg:col-span-8 bg-white p-6 md:p-10 rounded-[2.5rem] border border-gray-100 shadow-sm">
           <h2 className="text-[14px] font-black uppercase tracking-[0.3em] text-[#1A2B3C] mb-6">TASK MANAGEMENT</h2>
           <form onSubmit={(e) => { e.preventDefault(); if(newTaskText) { setTasks([...tasks, { id: Date.now(), text: newTaskText, completed: false }]); setNewTaskText(""); } }} className="flex gap-4 mb-8">
             <input type="text" placeholder="ADD EVENT MILESTONE..." value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} className="flex-1 px-6 py-4 bg-gray-50 rounded-2xl text-xs font-bold outline-none border border-transparent focus:border-[#1A73B5]/20" />
-            <button className="bg-[#1A73B5] text-white px-8 rounded-2xl font-black shadow-lg hover:bg-[#1A2B3C] transition-colors">+</button>
+            <button className="bg-[#1A73B5] text-white px-8 rounded-2xl font-black shadow-lg">+</button>
           </form>
           <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
             {tasks.map(task => (
@@ -162,15 +155,12 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Financials & Journal */}
         <div className="lg:col-span-4 space-y-8">
-          
-          {/* Budget Control Restoration */}
           <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-[#C7337B] font-black uppercase tracking-widest text-[10px]">FINANCIALS</h3>
               <div className={`px-2 py-0.5 rounded text-[9px] font-bold ${budgetRemaining < 0 ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'}`}>
-                ₹{budgetRemaining.toLocaleString()} Left
+                ₹{isMounted ? budgetRemaining.toLocaleString() : "1,000,000"} Left
               </div>
             </div>
             
@@ -207,24 +197,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FOOTER */}
       <footer className="mt-20 py-12 bg-white border-t border-gray-100 text-center">
         <p className="text-gray-400 text-[9px] font-bold uppercase tracking-[0.2em]">© 2026 EVENT ESSENTIALS • ALL RIGHTS RESERVED</p>
       </footer>
-
-      {/* PREVIEW MODAL */}
-      {showInvitePreview && (
-        <div className="fixed inset-0 bg-[#1A2B3C]/90 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-[3rem] p-12 text-center max-w-sm shadow-2xl">
-            <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-6">Digital Suite Preview</h4>
-            <div className="border-4 border-dashed border-gray-100 p-8 mb-8 rounded-[2rem] bg-gray-50">
-              <p className="text-5xl font-serif text-[#C7337B]" style={{ fontFamily: "'Great Vibes', cursive" }}>The Wedding</p>
-              <p className="text-sm mt-4 text-[#1A73B5] font-bold uppercase tracking-widest">{eventDate || "DATE NOT SET"}</p>
-            </div>
-            <button onClick={() => setShowInvitePreview(false)} className="w-full py-4 bg-[#1A2B3C] text-white rounded-full font-bold text-[10px] uppercase tracking-widest">CLOSE PREVIEW</button>
-          </div>
-        </div>
-      )}
     </main>
   );
 }
