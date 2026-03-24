@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useLayoutEffect } from "react";
 import Cropper from "react-easy-crop";
 import { Rnd } from "react-rnd";
 import { domToPng } from "modern-screenshot";
 import AppLayout from "./AppLayout";
 
+// ...existing code...
 const PX_PER_FOOT = 25;
 const DB_NAME = "StageDesignerDB_V2";
 const STORE_NAME = "ProjectGallery";
@@ -45,6 +46,7 @@ const CAMERA_PRESETS = [
 const HEADER_PATTERN = { backgroundImage: 'repeating-linear-gradient(45deg, rgba(0,0,0,0.03) 0 2px, transparent 2px 8px)' };
 
 // --- INDEXEDDB ENGINE ---
+// ...existing code...
 const initDB = () => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME);
@@ -146,9 +148,13 @@ export default function StageDesigner() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragRotation, setDragRotation] = useState({ x: 0, z: 0 });
 
+  // Mobile responsive scale
+  const [mobileScale, setMobileScale] = useState(1);
+
   const maskRef = useRef(null);
   const stageRef = useRef(null);
   const stageContainerRef = useRef(null);
+  const outerWrapperRef = useRef(null);
 
   const stageWidth = widthFt * PX_PER_FOOT;
   const stageHeight = heightFt * PX_PER_FOOT;
@@ -416,12 +422,16 @@ export default function StageDesigner() {
     setCanvasRedoStack([]);
   };
 
+  // TOUCH & MOUSE DRAW SUPPORT: unified handling
   const draw = (e) => {
     if (!drawing || !maskRef.current) return;
     const canvas = maskRef.current;
     const rect = canvas.getBoundingClientRect();
-    const x = ((e.clientX || e.touches?.[0].clientX) - rect.left) * (canvas.width / rect.width);
-    const y = ((e.clientY || e.touches?.[0].clientY) - rect.top) * (canvas.height / rect.height);
+    const clientX = e.clientX ?? e.touches?.[0]?.clientX;
+    const clientY = e.clientY ?? e.touches?.[0]?.clientY;
+    if (typeof clientX === "undefined") return;
+    const x = (clientX - rect.left) * (canvas.width / rect.width);
+    const y = (clientY - rect.top) * (canvas.height / rect.height);
     const ctx = canvas.getContext("2d");
     
     ctx.globalCompositeOperation = isRestore ? "destination-out" : "source-over";
@@ -485,9 +495,10 @@ export default function StageDesigner() {
     }
   }, [croppedPreview]);
 
-  // 3D Drag Rotation Controls
+  // 3D Drag Rotation Controls (mouse already implemented) + TOUCH handlers for mobile
   const handleStageMouseDown = (e) => {
-    if (e.target !== stageContainerRef.current) return;
+    // allow dragging only when tapping empty area of the stage container (avoid grabbing items)
+    if (e.target !== stageContainerRef.current && e.target !== outerWrapperRef.current) return;
     setIsDragging3D(true);
     setDragStart({ x: e.clientX, y: e.clientY });
     setDragRotation({ x: rotX, z: rotZ });
@@ -507,16 +518,69 @@ export default function StageDesigner() {
     setIsDragging3D(false);
   };
 
+  // Touch equivalents
+  const handleStageTouchStart = (e) => {
+    if (!e.touches || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    // same guard: only start if touching the outer wrapper (not an item)
+    if (e.target !== stageContainerRef.current && e.target !== outerWrapperRef.current) return;
+    setIsDragging3D(true);
+    setDragStart({ x: t.clientX, y: t.clientY });
+    setDragRotation({ x: rotX, z: rotZ });
+  };
+
+  const handleStageTouchMove = (e) => {
+    if (!isDragging3D || !e.touches || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const deltaX = t.clientX - dragStart.x;
+    const deltaY = t.clientY - dragStart.y;
+    const sensitivity = 0.5;
+    setRotX(dragRotation.x - deltaY * sensitivity);
+    setRotZ(dragRotation.z + deltaX * sensitivity);
+  };
+
+  const handleStageTouchEnd = () => {
+    setIsDragging3D(false);
+  };
+
   useEffect(() => {
     if (isDragging3D) {
       window.addEventListener('mousemove', handleStageMouseMove);
       window.addEventListener('mouseup', handleStageMouseUp);
+      window.addEventListener('touchmove', handleStageTouchMove, { passive: false });
+      window.addEventListener('touchend', handleStageTouchEnd);
       return () => {
         window.removeEventListener('mousemove', handleStageMouseMove);
         window.removeEventListener('mouseup', handleStageMouseUp);
+        window.removeEventListener('touchmove', handleStageTouchMove);
+        window.removeEventListener('touchend', handleStageTouchEnd);
       };
     }
   }, [isDragging3D, dragStart, dragRotation, rotX, rotZ]);
+
+  // Compute mobileScale to fit stage inside available space on small screens
+  const recomputeScale = useCallback(() => {
+    const wrapper = outerWrapperRef.current;
+    if (!wrapper) return;
+    const availableW = wrapper.clientWidth - 16; // padding
+    const availableH = wrapper.clientHeight - 16;
+    const requiredW = stageWidth + (extraDim * 2);
+    const requiredH = stageHeight + extraDim;
+    const scaleW = Math.max(0.35, Math.min(1, availableW / requiredW));
+    const scaleH = Math.max(0.35, Math.min(1, availableH / requiredH));
+    const s = Math.min(scaleW, scaleH);
+    setMobileScale(s);
+  }, [stageWidth, stageHeight, extraDim]);
+
+  useLayoutEffect(() => {
+    recomputeScale();
+  }, [recomputeScale, widthFt, heightFt, wallFt]);
+
+  useEffect(() => {
+    const onResize = () => recomputeScale();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [recomputeScale]);
 
   const redXStyle = "absolute bg-[#ff0000] text-white w-7 h-7 rounded-full text-xs flex items-center justify-center shadow-lg border-2 border-white font-bold transition-all active:scale-90 z-[70] cursor-pointer";
 
@@ -693,7 +757,11 @@ export default function StageDesigner() {
                     onMouseMove={draw} 
                     onMouseUp={() => { setDrawing(false); saveCanvasState(); }} 
                     onMouseLeave={() => { if(drawing) { setDrawing(false); saveCanvasState(); } }} 
-                    className="h-40 md:h-48 w-full cursor-crosshair object-contain bg-transparent" 
+                    // touch handlers added for mobile
+                    onTouchStart={(e) => { e.preventDefault(); setDrawing(true); draw(e.touches[0]); }} 
+                    onTouchMove={(e) => { e.preventDefault(); draw(e.touches[0]); }} 
+                    onTouchEnd={() => { setDrawing(false); saveCanvasState(); }}
+                    className="h-40 md:h-48 w-full cursor-crosshair object-contain bg-transparent"
                 />
               </div>
               <div className="space-y-3">
@@ -731,142 +799,150 @@ export default function StageDesigner() {
 
   // Main Canvas Content
   const canvasContent = (
-    <div className="flex items-center justify-center w-full h-full" style={{minWidth: 0, minHeight: 0, padding: '0.25rem'}}>
-            <div 
-              ref={stageRef} 
-              style={{ 
-                width: stageWidth + (extraDim * 2), 
-                height: stageHeight + extraDim, 
-                perspective: '1500px',
-                transform: `rotateX(${rotX}deg) rotateZ(${rotZ}deg) scale(${cameraZoom})`,
-                transformStyle: 'preserve-3d',
-                transformOrigin: 'center center',
-                transition: 'transform 0.3s ease-out',
-                maxWidth: '100%',
-                maxHeight: '100%',
-                overflow: 'hidden',
-                margin: '0 auto',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }} 
-              className="relative" 
-              onClick={() => {
-                setSelectedId(null);
-                setSelectedGroup([]);
-              }}
-            >
-            <div className="absolute inset-0 pointer-events-none flex flex-col items-center" style={{overflow: 'hidden'}}>
-              <div className="flex items-start">
-                <div style={{ width: extraDim, height: stageHeight, transform: 'rotateY(60deg) translateX(20px)', transformOrigin: 'right', backgroundColor: '#9ca3af', backfaceVisibility: 'hidden' }} className="border-r border-gray-600 opacity-90 shadow-2xl" />
-                <div style={{ 
-                  width: stageWidth, 
-                  height: stageHeight, 
-                  backgroundColor: '#ffffff',
-                  backgroundImage: (() => {
-                    const c = lightingColorFor(lightingPreset, lightingIntensity);
-                    return c ? `linear-gradient(rgba(0,0,0,0), ${c})` : 'none';
-                  })()
-                }} className="border border-gray-300 shadow-md z-[0] overflow-hidden relative" />
-                <div style={{ width: extraDim, height: stageHeight, transform: 'rotateY(-60deg) translateX(-20px)', transformOrigin: 'left', backgroundColor: '#9ca3af', backfaceVisibility: 'hidden' }} className="border-l border-gray-600 opacity-90 shadow-2xl" />
-              </div>
-              
-              <div style={{ 
-                width: stageWidth, 
-                height: extraDim, 
-                transform: 'rotateX(75deg) translateY(-30px)', 
-                transformOrigin: 'top', 
-                backgroundColor: floorTexture.color,
-                backgroundImage: floorTexture.pattern ? `linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)` : 'none',
-                backgroundSize: '25px 25px',
-                opacity: 0.8
-              }} className="border-t border-gray-500 shadow-inner relative" />
-            </div>
-
-            {/* GRID OVERLAY */}
-            {gridSnap && (
-              <div 
-                className="absolute inset-0 pointer-events-none z-[5]"
-                style={{
-                  backgroundImage: `
-                    linear-gradient(0deg, transparent calc(100% - 1px), #dbdbdb 100%),
-                    linear-gradient(90deg, transparent calc(100% - 1px), #dbdbdb 100%)
-                  `,
-                  backgroundSize: `${snapSize}px ${snapSize}px`,
-                  opacity: 0.3
-                }}
-              />
-            )}
-
-            <div className="absolute inset-0 z-10">
-                  {items.sort((a, b) => a.z - b.z).map((i) => {
-                const isGrouped = selectedGroup.includes(i.id);
-                return (
-                  <Rnd
-                    key={i.id} 
-                    bounds="parent" 
-                    size={{ width: i.w, height: i.h }} 
-                    position={{ 
-                      x: gridSnap ? Math.round(i.x / snapSize) * snapSize : i.x, 
-                      y: gridSnap ? Math.round(i.y / snapSize) * snapSize : i.y 
-                    }} 
-                    style={{ zIndex: i.z }}
-                    disableDragging={i.locked} 
-                    enableResizing={!i.locked}
-                    onDragStart={() => { 
-                      setSelectedId(i.id); 
-                      setIsDragging(true); 
-                    }}
-                    onDragStop={(e, d) => { 
-                      const newX = gridSnap ? Math.round(d.x / snapSize) * snapSize : d.x;
-                      const newY = gridSnap ? Math.round(d.y / snapSize) * snapSize : d.y;
-                      pushToHistory(items.map(item => item.id === i.id ? { ...item, x: newX, y: newY } : item)); 
-                      setIsDragging(false); 
-                    }}
-                    onResizeStart={() => { setResizingInfo({ id: i.id, w: i.w, h: i.h }); }}
-                    onResize={(e, direction, ref, delta, pos) => { setResizingInfo({ id: i.id, w: ref.offsetWidth, h: ref.offsetHeight }); }}
-                    onResizeStop={(e, d, ref, delta, pos) => { 
-                      pushToHistory(items.map(item => item.id === i.id ? { ...item, w: ref.offsetWidth, h: ref.offsetHeight, ...pos } : item)); 
-                      setIsDragging(false); 
-                      setResizingInfo({ id: null, w: 0, h: 0 });
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (e.ctrlKey || e.metaKey) {
-                        toggleGroupSelection(i.id);
-                      } else {
-                        setSelectedId(i.id);
-                      }
-                    }}
-                    >
-                    <div className={`relative w-full h-full border-2 transition-all ${selectedId === i.id || isGrouped ? 'border-blue-500 ring-4 ring-blue-500/10 z-[1000]' : 'border-transparent'} ${isGrouped ? 'ring-4 ring-purple-400/30 border-purple-500' : ''}`}>
-                      <img src={i.src} className={`w-full h-full object-contain pointer-events-none ${i.locked ? 'opacity-70' : 'opacity-100'}`} />
-                      {(selectedId === i.id || resizingInfo.id === i.id) && (() => {
-                        const wPx = resizingInfo.id === i.id ? resizingInfo.w : i.w;
-                        const hPx = resizingInfo.id === i.id ? resizingInfo.h : i.h;
-                        const wFt = Math.round((wPx / PX_PER_FOOT) * 10) / 10;
-                        const hFt = Math.round((hPx / PX_PER_FOOT) * 10) / 10;
-                        return (
-                          <div className="absolute bottom-2 left-2 bg-black/70 text-white text-[11px] px-2 py-1 rounded-lg font-bold">
-                            {wFt} x {hFt} ft
-                          </div>
-                        );
-                      })()}
-                      {selectedId === i.id && (
-                        <div className="absolute -top-10 left-0 flex gap-1 bg-black text-white p-1 rounded-lg text-[8px] md:text-[9px] z-[9999] font-bold uppercase shadow-xl items-center" style={{whiteSpace: 'nowrap'}}>
-                          <button className="px-2 py-1" onClick={(e) => { e.stopPropagation(); toggleLock(i.id); }}>{i.locked ? 'Unlock' : 'Lock'}</button>
-                          <button className="px-2 py-1" onClick={(e) => { e.stopPropagation(); moveLayer(i.id, 'front'); }}>Top</button>
-                          <button className="px-2 py-1" onClick={(e) => { e.stopPropagation(); moveLayer(i.id, 'back'); }}>Bottom</button>
-                          <button className="px-2 py-1 text-blue-300" onClick={(e) => { e.stopPropagation(); duplicateItem(i); }}>Clone</button>
-                          <button onClick={(e) => { e.stopPropagation(); pushToHistory(items.filter(item => item.id !== i.id)); }} className="px-2 py-1 text-red-500">✕</button>
-                        </div>
-                      )}
-                    </div>
-                  </Rnd>
-                );
-              })}
-            </div>
+    <div ref={outerWrapperRef} className="flex items-center justify-center w-full h-full" style={{minWidth: 0, minHeight: 0, padding: '0.25rem'}}>
+      <div 
+        ref={stageContainerRef}
+        onMouseDown={handleStageMouseDown}
+        onTouchStart={handleStageTouchStart}
+        // ensure touch-action is none to allow custom drag gestures on mobile
+        style={{ touchAction: 'none', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+      >
+        <div 
+          ref={stageRef} 
+          style={{ 
+            width: stageWidth + (extraDim * 2), 
+            height: stageHeight + extraDim, 
+            perspective: '1500px',
+            transform: `scale(${mobileScale}) rotateX(${rotX}deg) rotateZ(${rotZ}deg) scale(${cameraZoom})`,
+            transformStyle: 'preserve-3d',
+            transformOrigin: 'center center',
+            transition: 'transform 0.18s ease-out',
+            maxWidth: '100%',
+            maxHeight: '100%',
+            overflow: 'hidden',
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }} 
+          className="relative" 
+          onClick={() => {
+            setSelectedId(null);
+            setSelectedGroup([]);
+          }}
+        >
+        <div className="absolute inset-0 pointer-events-none flex flex-col items-center" style={{overflow: 'hidden'}}>
+          <div className="flex items-start">
+            <div style={{ width: extraDim, height: stageHeight, transform: 'rotateY(60deg) translateX(20px)', transformOrigin: 'right', backgroundColor: '#9ca3af', backfaceVisibility: 'hidden' }} className="border-r border-gray-600 opacity-90 shadow-2xl" />
+            <div style={{ 
+              width: stageWidth, 
+              height: stageHeight, 
+              backgroundColor: '#ffffff',
+              backgroundImage: (() => {
+                const c = lightingColorFor(lightingPreset, lightingIntensity);
+                return c ? `linear-gradient(rgba(0,0,0,0), ${c})` : 'none';
+              })()
+            }} className="border border-gray-300 shadow-md z-[0] overflow-hidden relative" />
+            <div style={{ width: extraDim, height: stageHeight, transform: 'rotateY(-60deg) translateX(-20px)', transformOrigin: 'left', backgroundColor: '#9ca3af', backfaceVisibility: 'hidden' }} className="border-l border-gray-600 opacity-90 shadow-2xl" />
           </div>
+          
+          <div style={{ 
+            width: stageWidth, 
+            height: extraDim, 
+            transform: 'rotateX(75deg) translateY(-30px)', 
+            transformOrigin: 'top', 
+            backgroundColor: floorTexture.color,
+            backgroundImage: floorTexture.pattern ? `linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)` : 'none',
+            backgroundSize: '25px 25px',
+            opacity: 0.8
+          }} className="border-t border-gray-500 shadow-inner relative" />
+        </div>
+
+        {/* GRID OVERLAY */}
+        {gridSnap && (
+          <div 
+            className="absolute inset-0 pointer-events-none z-[5]"
+            style={{
+              backgroundImage: `
+                linear-gradient(0deg, transparent calc(100% - 1px), #dbdbdb 100%),
+                linear-gradient(90deg, transparent calc(100% - 1px), #dbdbdb 100%)
+              `,
+              backgroundSize: `${snapSize}px ${snapSize}px`,
+              opacity: 0.3
+            }}
+          />
+        )}
+
+        <div className="absolute inset-0 z-10">
+              {items.sort((a, b) => a.z - b.z).map((i) => {
+            const isGrouped = selectedGroup.includes(i.id);
+            return (
+              <Rnd
+                key={i.id} 
+                bounds="parent" 
+                size={{ width: i.w, height: i.h }} 
+                position={{ 
+                  x: gridSnap ? Math.round(i.x / snapSize) * snapSize : i.x, 
+                  y: gridSnap ? Math.round(i.y / snapSize) * snapSize : i.y 
+                }} 
+                style={{ zIndex: i.z }}
+                disableDragging={i.locked} 
+                enableResizing={!i.locked}
+                onDragStart={() => { 
+                  setSelectedId(i.id); 
+                  setIsDragging(true); 
+                }}
+                onDragStop={(e, d) => { 
+                  const newX = gridSnap ? Math.round(d.x / snapSize) * snapSize : d.x;
+                  const newY = gridSnap ? Math.round(d.y / snapSize) * snapSize : d.y;
+                  pushToHistory(items.map(item => item.id === i.id ? { ...item, x: newX, y: newY } : item)); 
+                  setIsDragging(false); 
+                }}
+                onResizeStart={() => { setResizingInfo({ id: i.id, w: i.w, h: i.h }); }}
+                onResize={(e, direction, ref, delta, pos) => { setResizingInfo({ id: i.id, w: ref.offsetWidth, h: ref.offsetHeight }); }}
+                onResizeStop={(e, d, ref, delta, pos) => { 
+                  pushToHistory(items.map(item => item.id === i.id ? { ...item, w: ref.offsetWidth, h: ref.offsetHeight, ...pos } : item)); 
+                  setIsDragging(false); 
+                  setResizingInfo({ id: null, w: 0, h: 0 });
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (e.ctrlKey || e.metaKey) {
+                    toggleGroupSelection(i.id);
+                  } else {
+                    setSelectedId(i.id);
+                  }
+                }}
+                >
+                <div className={`relative w-full h-full border-2 transition-all ${selectedId === i.id || isGrouped ? 'border-blue-500 ring-4 ring-blue-500/10 z-[1000]' : 'border-transparent'} ${isGrouped ? 'ring-4 ring-purple-400/30 border-purple-500' : ''}`}>
+                  <img src={i.src} className={`w-full h-full object-contain pointer-events-none ${i.locked ? 'opacity-70' : 'opacity-100'}`} />
+                  {(selectedId === i.id || resizingInfo.id === i.id) && (() => {
+                    const wPx = resizingInfo.id === i.id ? resizingInfo.w : i.w;
+                    const hPx = resizingInfo.id === i.id ? resizingInfo.h : i.h;
+                    const wFt = Math.round((wPx / PX_PER_FOOT) * 10) / 10;
+                    const hFt = Math.round((hPx / PX_PER_FOOT) * 10) / 10;
+                    return (
+                      <div className="absolute bottom-2 left-2 bg-black/70 text-white text-[11px] px-2 py-1 rounded-lg font-bold">
+                        {wFt} x {hFt} ft
+                      </div>
+                    );
+                  })()}
+                  {selectedId === i.id && (
+                    <div className="absolute -top-10 left-0 flex gap-1 bg-black text-white p-1 rounded-lg text-[8px] md:text-[9px] z-[9999] font-bold uppercase shadow-xl items-center" style={{whiteSpace: 'nowrap'}}>
+                      <button className="px-2 py-1" onClick={(e) => { e.stopPropagation(); toggleLock(i.id); }}>{i.locked ? 'Unlock' : 'Lock'}</button>
+                      <button className="px-2 py-1" onClick={(e) => { e.stopPropagation(); moveLayer(i.id, 'front'); }}>Top</button>
+                      <button className="px-2 py-1" onClick={(e) => { e.stopPropagation(); moveLayer(i.id, 'back'); }}>Bottom</button>
+                      <button className="px-2 py-1 text-blue-300" onClick={(e) => { e.stopPropagation(); duplicateItem(i); }}>Clone</button>
+                      <button onClick={(e) => { e.stopPropagation(); pushToHistory(items.filter(item => item.id !== i.id)); }} className="px-2 py-1 text-red-500">✕</button>
+                    </div>
+                  )}
+                </div>
+              </Rnd>
+            );
+          })}
+        </div>
+      </div>
+      </div>
     </div>
   );
 
