@@ -19,12 +19,12 @@ const FLOOR_TEXTURES = [
 ];
 
 const STAGE_TEMPLATES = [
-  { id: 'concert', label: 'Concert', width: 40, height: 25, wall: 8, floor: 'dark' },
-  { id: 'theater', label: 'Theater', width: 50, height: 30, wall: 12, floor: 'dark' },
-  { id: 'conference', label: 'Conference', width: 60, height: 15, wall: 8, floor: 'concrete' },
-  { id: 'fashion', label: 'Fashion Show', width: 80, height: 20, wall: 6, floor: 'dark' },
-  { id: 'wedding', label: 'Wedding', width: 50, height: 40, wall: 10, floor: 'wood' },
-  { id: 'exhibition', label: 'Exhibition', width: 100, height: 50, wall: 8, floor: 'grid' },
+  { id: 'concert', label: 'Concert', width: 40, height: 25, wall: 8, floorDepth: 12, floor: 'dark' },
+  { id: 'theater', label: 'Theater', width: 50, height: 30, wall: 12, floorDepth: 14, floor: 'dark' },
+  { id: 'conference', label: 'Conference', width: 60, height: 15, wall: 8, floorDepth: 8, floor: 'concrete' },
+  { id: 'fashion', label: 'Fashion Show', width: 80, height: 20, wall: 6, floorDepth: 10, floor: 'dark' },
+  { id: 'wedding', label: 'Wedding', width: 50, height: 40, wall: 10, floorDepth: 12, floor: 'wood' },
+  { id: 'exhibition', label: 'Exhibition', width: 100, height: 50, wall: 8, floorDepth: 15, floor: 'grid' },
 ];
 
 const LIGHTING_PRESETS = [
@@ -107,6 +107,7 @@ export default function StageDesigner() {
   const [widthFt, setWidthFt] = useState(30);
   const [heightFt, setHeightFt] = useState(15);
   const [wallFt, setWallFt] = useState(6);
+  const [floorDepthFt, setFloorDepthFt] = useState(8);
   const [floorTexture, setFloorTexture] = useState(FLOOR_TEXTURES[1]);
   const [showSpotlights, setShowSpotlights] = useState(true);
   
@@ -129,12 +130,13 @@ export default function StageDesigner() {
   const [selectedId, setSelectedId] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [history, setHistory] = useState([]);
+  const selectedItem = items.find(i => i.id === selectedId) || null;
   const [redoStack, setRedoStack] = useState([]);
   const [canvasHistory, setCanvasHistory] = useState([]);
   const [canvasRedoStack, setCanvasRedoStack] = useState([]);
 
   // New Features
-  const [gridSnap, setGridSnap] = useState(false);
+  const [gridSnap, setGridSnap] = useState(true); // grid enabled by default for mobile initial view
   const [snapSize, setSnapSize] = useState(25);
   const [selectedGroup, setSelectedGroup] = useState([]);
   const [lightingPreset, setLightingPreset] = useState(LIGHTING_PRESETS[0]);
@@ -146,7 +148,10 @@ export default function StageDesigner() {
   const [lightingIntensity, setLightingIntensity] = useState(lightingPreset.intensity || 0);
   const [isDragging3D, setIsDragging3D] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [stageScrollEnabled, setStageScrollEnabled] = useState(true);
+  const [userZoom, setUserZoom] = useState(1);
   const [dragRotation, setDragRotation] = useState({ x: 0, z: 0 });
+  const [isMobile, setIsMobile] = useState(false);
 
   // Mobile responsive scale
   const [mobileScale, setMobileScale] = useState(1);
@@ -158,7 +163,8 @@ export default function StageDesigner() {
 
   const stageWidth = widthFt * PX_PER_FOOT;
   const stageHeight = heightFt * PX_PER_FOOT;
-  const extraDim = wallFt * PX_PER_FOOT;
+  const wallPx = wallFt * PX_PER_FOOT;
+  const floorDepthPx = floorDepthFt * PX_PER_FOOT;
 
   const refreshGallery = async () => {
     const projs = await getAllProjects();
@@ -229,6 +235,7 @@ export default function StageDesigner() {
       widthFt,
       heightFt,
       wallFt,
+      floorDepthFt,
       floorTexture,
       showSpotlights,
       library,
@@ -249,7 +256,7 @@ export default function StageDesigner() {
       }
     }, 300000); 
     return () => clearInterval(timer);
-  }, [projectId, projectName, widthFt, heightFt, wallFt, floorTexture, showSpotlights, library, items]);
+  }, [projectId, projectName, widthFt, heightFt, wallFt, floorDepthFt, floorTexture, showSpotlights, library, items]);
 
   const handleDuplicate = async (proj, e) => {
     e.stopPropagation();
@@ -270,12 +277,14 @@ export default function StageDesigner() {
     setWidthFt(proj.widthFt);
     setHeightFt(proj.heightFt);
     setWallFt(proj.wallFt);
+    setFloorDepthFt(proj.floorDepthFt ?? 8);
     setFloorTexture(proj.floorTexture);
     setShowSpotlights(proj.showSpotlights);
     setLibrary(proj.library || []);
     setItems(proj.items || []);
     setHistory([]);
     setRedoStack([]);
+    window.dispatchEvent(new Event('closeSidebar'));
   };
 
   const handleNew = () => {
@@ -285,6 +294,7 @@ export default function StageDesigner() {
       setItems([]);
       setLibrary([]);
       setHistory([]);
+      setFloorDepthFt(8);
       setLastAutoSave(null);
     }
   };
@@ -370,6 +380,7 @@ export default function StageDesigner() {
     setWidthFt(template.width);
     setHeightFt(template.height);
     setWallFt(template.wall);
+    setFloorDepthFt(template.floorDepth ?? template.wall ?? 8);
     setFloorTexture(FLOOR_TEXTURES.find(t => t.id === template.floor));
   };
 
@@ -452,9 +463,10 @@ export default function StageDesigner() {
   };
 
   const addItem = (src) => {
-    const newItem = { id: Date.now(), src, x: extraDim + 50, y: 50, w: 200, h: 150, z: items.length + 1, locked: false };
+    const newItem = { id: Date.now(), src, x: wallPx + 50, y: 50, w: 200, h: 150, z: items.length + 1, locked: false };
     pushToHistory([...items, newItem]);
     setSelectedId(newItem.id);
+    window.dispatchEvent(new Event('closeSidebar'));
   };
 
   const toggleLock = (id) => {
@@ -564,13 +576,13 @@ export default function StageDesigner() {
     if (!wrapper) return;
     const availableW = wrapper.clientWidth - 16; // padding
     const availableH = wrapper.clientHeight - 16;
-    const requiredW = stageWidth + (extraDim * 2);
-    const requiredH = stageHeight + extraDim;
+    const requiredW = stageWidth + (wallPx * 2);
+    const requiredH = stageHeight + floorDepthPx;
     const scaleW = Math.max(0.35, Math.min(1, availableW / requiredW));
     const scaleH = Math.max(0.35, Math.min(1, availableH / requiredH));
     const s = Math.min(scaleW, scaleH);
     setMobileScale(s);
-  }, [stageWidth, stageHeight, extraDim]);
+  }, [stageWidth, stageHeight, wallPx, floorDepthPx]);
 
   useLayoutEffect(() => {
     recomputeScale();
@@ -582,47 +594,56 @@ export default function StageDesigner() {
     return () => window.removeEventListener('resize', onResize);
   }, [recomputeScale]);
 
+  useEffect(() => {
+    const updateMobile = () => setIsMobile(window.innerWidth <= 1024);
+    updateMobile();
+    window.addEventListener('resize', updateMobile);
+    return () => window.removeEventListener('resize', updateMobile);
+  }, []);
+
   const redXStyle = "absolute bg-[#ff0000] text-white w-7 h-7 rounded-full text-xs flex items-center justify-center shadow-lg border-2 border-white font-bold transition-all active:scale-90 z-[70] cursor-pointer";
 
   // Header Left Section
   const headerLeftContent = (
-    <>
-      <div className="flex flex-col min-w-0 pr-2 md:pr-3 border-r border-gray-200">
-        <h1 className="text-sm md:text-lg font-black tracking-tighter uppercase italic leading-none" style={{color: 'var(--ee-primary, #1E40AF)'}}>STAGE 3D</h1>
+    <div className="flex items-center gap-2 min-w-0 pr-2 md:pr-3 border-r border-gray-200">
+      <div className="hidden lg:flex items-center gap-2">
+        <button 
+          onClick={undo} 
+          disabled={croppedPreview ? canvasHistory.length <= 1 : history.length === 0}
+          className={`text-[10px] md:text-[11px] font-bold border px-2.5 md:px-3 py-1 rounded active:bg-gray-100 shadow-sm transition-opacity ${(croppedPreview ? canvasHistory.length <= 1 : history.length === 0) ? 'opacity-30 cursor-not-allowed' : 'opacity-100'}`}
+        >
+          ↶
+        </button>
+        <button 
+          onClick={redo} 
+          disabled={croppedPreview ? canvasRedoStack.length === 0 : redoStack.length === 0}
+          className={`text-[10px] md:text-[11px] font-bold border px-2.5 md:px-3 py-1 rounded active:bg-gray-100 shadow-sm transition-opacity ${(croppedPreview ? canvasRedoStack.length === 0 : redoStack.length === 0) ? 'opacity-30 cursor-not-allowed' : 'opacity-100'}`}
+        >
+          ↷
+        </button>
+        <button 
+          onClick={() => handleSave()} 
+          className="text-[10px] md:text-[11px] font-bold bg-green-500 text-white px-2.5 md:px-3 py-1 rounded hover:bg-green-600 transition-colors shadow-md"
+        >
+          Save
+        </button>
+        <button onClick={handleNew} className="text-[10px] md:text-[11px] font-bold border border-blue-200 text-blue-600 px-2.5 md:px-3 py-1 rounded active:bg-blue-50" style={HEADER_PATTERN}>New</button>
+      </div>
+
+      <div className="flex items-center min-w-0">
         <input 
           type="text" 
           value={projectName} 
           onChange={(e) => setProjectName(e.target.value)} 
-          className="text-[9px] md:text-[10px] font-bold text-gray-600 bg-gray-50 px-1.5 md:px-2 py-1 rounded border-none outline-none focus:ring-1 ring-blue-400 uppercase tracking-widest mt-1 truncate max-w-[80px] md:max-w-[120px]"
-          placeholder="PROJ"
+          className="text-[9px] md:text-[10px] font-bold text-gray-600 bg-gray-50 px-1.5 md:px-2 py-1 rounded border-none outline-none focus:ring-1 ring-blue-400 uppercase tracking-widest truncate max-w-[120px]"
+          placeholder="Project Name"
         />
       </div>
-      <button 
-        onClick={undo} 
-        disabled={croppedPreview ? canvasHistory.length <= 1 : history.length === 0}
-        className={`text-[10px] md:text-[11px] font-bold border px-2.5 md:px-3 py-1 rounded active:bg-gray-100 shadow-sm transition-opacity ${(croppedPreview ? canvasHistory.length <= 1 : history.length === 0) ? 'opacity-30 cursor-not-allowed' : 'opacity-100'}`}
-      >
-        ↶
-      </button>
-      <button 
-        onClick={redo} 
-        disabled={croppedPreview ? canvasRedoStack.length === 0 : redoStack.length === 0}
-        className={`text-[10px] md:text-[11px] font-bold border px-2.5 md:px-3 py-1 rounded active:bg-gray-100 shadow-sm transition-opacity ${(croppedPreview ? canvasRedoStack.length === 0 : redoStack.length === 0) ? 'opacity-30 cursor-not-allowed' : 'opacity-100'}`}
-      >
-        ↷
-      </button>
-      <button 
-        onClick={() => handleSave()} 
-        className="text-[10px] md:text-[11px] font-bold bg-green-500 text-white px-2.5 md:px-3 py-1 rounded hover:bg-green-600 transition-colors shadow-md"
-      >
-        Save
-      </button>
-      <button onClick={handleNew} className="text-[10px] md:text-[11px] font-bold border border-blue-200 text-blue-600 px-2.5 md:px-3 py-1 rounded active:bg-blue-50" style={HEADER_PATTERN}>New</button>
-    </>
+    </div>
   );
   // Header Right Section - Controls
   const headerRightContent = (
-    <>
+    <div className="flex flex-wrap items-center gap-2 min-w-0">
       <select
         value={cameraPreset.id}
         onChange={(e) => {
@@ -645,7 +666,7 @@ export default function StageDesigner() {
         {LIGHTING_PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
       </select>
       {lightingPreset && lightingPreset.id !== 'none' && (
-        <div className="hidden sm:flex items-center gap-0.5 bg-white/90 backdrop-blur-sm rounded-lg p-1 shadow-sm shrink-0">
+        <div className="flex items-center gap-0.5 bg-white/90 backdrop-blur-sm rounded-lg p-1 shadow-sm shrink-0">
           <button onClick={() => setLightingIntensity(clamp(lightingIntensity - 0.05, 0, 1))} className="px-1.5 py-0.5 bg-gray-100 rounded text-[8px]">−</button>
           <input type="range" min="0" max="1" step="0.01" value={lightingIntensity} onChange={(e) => setLightingIntensity(Number(e.target.value))} className="w-12 h-0.5" />
           <button onClick={() => setLightingIntensity(clamp(lightingIntensity + 0.05, 0, 1))} className="px-1.5 py-0.5 bg-gray-100 rounded text-[8px]">+</button>
@@ -653,7 +674,7 @@ export default function StageDesigner() {
         </div>
       )}
 
-      <label className="hidden sm:flex items-center gap-0.5 text-[8px] bg-gray-100 border border-gray-300 rounded-lg px-2 py-1 shrink-0">
+      <label className="flex items-center gap-0.5 text-[8px] bg-gray-100 border border-gray-300 rounded-lg px-2 py-1 shrink-0">
         <input type="checkbox" checked={gridSnap} onChange={(e) => setGridSnap(e.target.checked)} className="w-3 h-3" />
         <span className="font-bold">Grid</span>
         {gridSnap && (
@@ -661,16 +682,28 @@ export default function StageDesigner() {
         )}
       </label>
 
-      <div className="hidden lg:flex items-center gap-0.5 text-[7px] md:text-[8px] font-bold text-gray-600 bg-purple-50 border border-purple-200 rounded-lg px-2 py-1 shrink-0" style={HEADER_PATTERN}>
+      <label className="flex items-center gap-0.5 text-[8px] bg-gray-100 border border-gray-300 rounded-lg px-2 py-1 shrink-0">
+        <input type="checkbox" checked={stageScrollEnabled} onChange={(e) => setStageScrollEnabled(e.target.checked)} className="w-3 h-3" />
+        <span className="font-bold">Stage Scroll</span>
+      </label>
+
+      <label className="flex items-center gap-0.5 text-[8px] bg-gray-100 border border-gray-300 rounded-lg px-2 py-1 shrink-0">
+        <span className="font-bold">Zoom</span>
+        <input type="range" min="0.4" max="2" step="0.05" value={userZoom} onChange={(e) => setUserZoom(Number(e.target.value))} className="w-20 h-0.5" />
+        <span className="text-[8px] font-semibold">{Math.round(userZoom * 100)}%</span>
+      </label>
+
+      <div className="flex items-center gap-0.5 text-[7px] md:text-[8px] font-bold text-gray-600 bg-purple-50 border border-purple-200 rounded-lg px-2 py-1 shrink-0" style={HEADER_PATTERN}>
         <label className="flex items-center gap-0.5">W<input type="number" value={widthFt} onChange={e => setWidthFt(+e.target.value)} className="w-6 md:w-8 border rounded px-1 py-0.5 text-center text-[7px]" /></label>
         <label className="flex items-center gap-0.5">H<input type="number" value={heightFt} onChange={e => setHeightFt(+e.target.value)} className="w-6 md:w-8 border rounded px-1 py-0.5 text-center text-[7px]" /></label>
         <label className="flex items-center gap-0.5">Wall<input type="number" value={wallFt} onChange={e => setWallFt(+e.target.value)} className="w-6 md:w-7 border rounded px-1 py-0.5 text-center text-[7px]" /></label>
+        <label className="flex items-center gap-0.5">Floor<input type="number" value={floorDepthFt} onChange={e => setFloorDepthFt(+e.target.value)} className="w-6 md:w-7 border rounded px-1 py-0.5 text-center text-[7px]" /></label>
         <select value={floorTexture.id} onChange={(e) => setFloorTexture(FLOOR_TEXTURES.find(t => t.id === e.target.value))} className="bg-white border rounded px-1 py-0.5 text-[7px]">
           {FLOOR_TEXTURES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
         </select>
       </div>
       <button onClick={exportStageAsImage} className="px-3 md:px-4 py-1 md:py-1.5 bg-blue-600 text-white rounded-full text-[9px] md:text-[10px] font-bold shadow-md hover:bg-blue-700 transition-all whitespace-nowrap shrink-0">Download</button>
-    </>
+    </div>
   );
   // Sidebar Content
   const sidebarContent = (
@@ -799,7 +832,7 @@ export default function StageDesigner() {
 
   // Main Canvas Content
   const canvasContent = (
-    <div ref={outerWrapperRef} className="flex items-center justify-center w-full h-full" style={{minWidth: 0, minHeight: 0, padding: '0.25rem'}}>
+    <div ref={outerWrapperRef} className="flex items-center justify-center w-full h-full" style={{minWidth: 0, minHeight: 0, padding: '0.25rem', overflow: stageScrollEnabled ? 'auto' : 'hidden'}}>
       <div 
         ref={stageContainerRef}
         onMouseDown={handleStageMouseDown}
@@ -810,20 +843,22 @@ export default function StageDesigner() {
         <div 
           ref={stageRef} 
           style={{ 
-            width: stageWidth + (extraDim * 2), 
-            height: stageHeight + extraDim, 
+            width: stageWidth + (wallPx * 2), 
+            height: stageHeight + floorDepthPx, 
             perspective: '1500px',
-            transform: `scale(${mobileScale}) rotateX(${rotX}deg) rotateZ(${rotZ}deg) scale(${cameraZoom})`,
+            transform: `scale(${mobileScale * userZoom}) rotateX(${rotX}deg) rotateZ(${rotZ}deg) scale(${cameraZoom})`,
             transformStyle: 'preserve-3d',
             transformOrigin: 'center center',
             transition: 'transform 0.18s ease-out',
             maxWidth: '100%',
             maxHeight: '100%',
-            overflow: 'hidden',
+            overflow: 'visible',
             margin: '0 auto',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            border: '3px solid #000',
+            boxShadow: '0 0 0 3px rgba(0,0,0,0.35)'
           }} 
           className="relative" 
           onClick={() => {
@@ -833,7 +868,7 @@ export default function StageDesigner() {
         >
         <div className="absolute inset-0 pointer-events-none flex flex-col items-center" style={{overflow: 'hidden'}}>
           <div className="flex items-start">
-            <div style={{ width: extraDim, height: stageHeight, transform: 'rotateY(60deg) translateX(20px)', transformOrigin: 'right', backgroundColor: '#9ca3af', backfaceVisibility: 'hidden' }} className="border-r border-gray-600 opacity-90 shadow-2xl" />
+            <div style={{ width: wallPx, height: stageHeight, transform: 'rotateY(60deg) translateX(20px)', transformOrigin: 'right', backgroundColor: '#9ca3af', backfaceVisibility: 'hidden' }} className={`${isMobile ? 'border-none' : 'border-r-4 border-black'} opacity-100 shadow-2xl`} />
             <div style={{ 
               width: stageWidth, 
               height: stageHeight, 
@@ -842,20 +877,20 @@ export default function StageDesigner() {
                 const c = lightingColorFor(lightingPreset, lightingIntensity);
                 return c ? `linear-gradient(rgba(0,0,0,0), ${c})` : 'none';
               })()
-            }} className="border border-gray-300 shadow-md z-[0] overflow-hidden relative" />
-            <div style={{ width: extraDim, height: stageHeight, transform: 'rotateY(-60deg) translateX(-20px)', transformOrigin: 'left', backgroundColor: '#9ca3af', backfaceVisibility: 'hidden' }} className="border-l border-gray-600 opacity-90 shadow-2xl" />
+            }} className={`${isMobile ? 'border-none' : 'border-4 border-black'} shadow-md z-[0] overflow-hidden relative`} />
+            <div style={{ width: wallPx, height: stageHeight, transform: 'rotateY(-60deg) translateX(-20px)', transformOrigin: 'left', backgroundColor: '#9ca3af', backfaceVisibility: 'hidden' }} className={`${isMobile ? 'border-none' : 'border-l-4 border-black'} opacity-90 shadow-2xl`} />
           </div>
           
           <div style={{ 
             width: stageWidth, 
-            height: extraDim, 
+            height: floorDepthPx, 
             transform: 'rotateX(75deg) translateY(-30px)', 
             transformOrigin: 'top', 
             backgroundColor: floorTexture.color,
             backgroundImage: floorTexture.pattern ? `linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)` : 'none',
             backgroundSize: '25px 25px',
             opacity: 0.8
-          }} className="border-t border-gray-500 shadow-inner relative" />
+          }} className={`${isMobile ? 'border-none' : 'border-t-4 border-black'} shadow-inner relative`} />
         </div>
 
         {/* GRID OVERLAY */}
@@ -949,8 +984,13 @@ export default function StageDesigner() {
   return (
     <AppLayout 
       title="Stage Designer"
-      headerLeft={headerLeftContent}
-      headerRight={headerRightContent}
+      headerLeft={(
+        <div className="flex flex-wrap items-center gap-2 w-full">
+          {headerLeftContent}
+          {headerRightContent}
+        </div>
+      )}
+      headerRight={<></>}
       sidebar={sidebarContent}
     >
       {canvasContent}

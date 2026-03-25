@@ -138,7 +138,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="hidden lg:flex flex-col items-center">
+          <div className="flex flex-col items-center w-full lg:w-auto">
             <div className="mb-1 group relative cursor-pointer" onClick={() => setIsEditingName(true)}>
                 {isEditingName ? (
                     <input 
@@ -157,17 +157,17 @@ export default function Home() {
                 )}
             </div>
 
-            <div className="flex items-center gap-8 px-8 border-t border-gray-100 pt-1">
-                <div className="text-center group relative cursor-pointer min-w-[80px]" onClick={() => setIsEditingDate(true)}>
+            <div className="flex flex-wrap justify-center gap-3 md:gap-8 px-2 md:px-8 border-t border-gray-100 pt-1">
+                <div className="text-center group relative cursor-pointer min-w-[70px]" onClick={() => setIsEditingDate(true)}>
                     <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">DAYS LEFT</p>
                     {isEditingDate ? (
                         <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} onBlur={() => setIsEditingDate(false)} autoFocus className="text-[10px] font-black text-[#E8A835] bg-gray-50 rounded" />
                     ) : (
-                        <p className="text-xl font-black text-[#E8A835] tracking-tighter transition-transform group-hover:scale-110">{daysRemaining ?? '0'}</p>
+                        <p className="text-lg md:text-xl font-black text-[#E8A835] tracking-tighter transition-transform group-hover:scale-110">{daysRemaining ?? '0'}</p>
                     )}
                 </div>
 
-                <div className="text-center min-w-[100px]">
+                <div className="text-center min-w-[90px] md:min-w-[100px]">
                     <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">REMAINING</p>
                     <p className={`text-xl font-black tracking-tighter ${budgetRemaining < 0 ? 'text-red-500' : 'text-[#C7337B]'}`}>
                         ₹{isMounted ? budgetRemaining.toLocaleString('en-IN') : "10,00,000"}
