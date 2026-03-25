@@ -103,7 +103,7 @@ async function getCroppedImg(imageSrc, pixelCrop) {
 
 export default function StageDesigner() {
   const [projectId, setProjectId] = useState(null);
-  const [projectName, setProjectName] = useState("New Design");
+  const [projectName, setProjectName] = useState("Name Design");
   const [widthFt, setWidthFt] = useState(30);
   const [heightFt, setHeightFt] = useState(15);
   const [wallFt, setWallFt] = useState(6);
@@ -290,7 +290,7 @@ export default function StageDesigner() {
   const handleNew = () => {
     if (confirm("Create new project? Unsaved changes will be lost.")) {
       setProjectId(null);
-      setProjectName("New Design");
+      setProjectName("Name Design");
       setItems([]);
       setLibrary([]);
       setHistory([]);
@@ -578,15 +578,18 @@ export default function StageDesigner() {
     const availableH = wrapper.clientHeight - 16;
     const requiredW = stageWidth + (wallPx * 2);
     const requiredH = stageHeight + floorDepthPx;
-    const scaleW = Math.max(0.35, Math.min(1, availableW / requiredW));
-    const scaleH = Math.max(0.35, Math.min(1, availableH / requiredH));
-    const s = Math.min(scaleW, scaleH);
+    const scaleW = availableW / requiredW;
+    const scaleH = availableH / requiredH;
+    const desiredScale = Math.min(1, Math.max(0.35, Math.min(scaleW, scaleH)));
+
+    // when stage scroll is enabled, prefer fixed 1:1 view and allow scrolling
+    const s = stageScrollEnabled ? 1 : desiredScale;
     setMobileScale(s);
-  }, [stageWidth, stageHeight, wallPx, floorDepthPx]);
+  }, [stageWidth, stageHeight, wallPx, floorDepthPx, stageScrollEnabled]);
 
   useLayoutEffect(() => {
     recomputeScale();
-  }, [recomputeScale, widthFt, heightFt, wallFt]);
+  }, []);
 
   useEffect(() => {
     const onResize = () => recomputeScale();
@@ -627,6 +630,7 @@ export default function StageDesigner() {
         >
           Save
         </button>
+        <button onClick={exportStageAsImage} className="text-[10px] md:text-[11px] font-bold bg-blue-600 text-white px-2.5 md:px-3 py-1 rounded hover:bg-blue-700 transition-colors shadow-md">Download</button>
         <button onClick={handleNew} className="text-[10px] md:text-[11px] font-bold border border-blue-200 text-blue-600 px-2.5 md:px-3 py-1 rounded active:bg-blue-50" style={HEADER_PATTERN}>New</button>
       </div>
 
@@ -650,7 +654,7 @@ export default function StageDesigner() {
           const p = CAMERA_PRESETS.find(x => x.id === e.target.value);
           if (p) applyCamera(p);
         }}
-        className="bg-red-50 border border-red-200 rounded px-2 md:px-2.5 py-1 text-[8px] md:text-[9px] font-bold text-red-600 outline-none shrink-0"
+        className="bg-red-50 border border-red-200 rounded px-4 md:px-5 py-2 text-[11px] md:text-[13px] font-bold text-red-600 outline-none shrink-0"
       >
         {CAMERA_PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
       </select>
@@ -661,7 +665,7 @@ export default function StageDesigner() {
           const p = LIGHTING_PRESETS.find(x => x.id === e.target.value);
           if (p) setLightingPreset(p);
         }}
-        className="bg-yellow-50 border border-yellow-300 rounded px-2 md:px-2.5 py-1 text-[8px] md:text-[9px] font-bold text-yellow-700 outline-none shrink-0"
+        className="bg-yellow-50 border border-yellow-300 rounded px-4 md:px-5 py-2 text-[11px] md:text-[13px] font-bold text-yellow-700 outline-none shrink-0"
       >
         {LIGHTING_PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
       </select>
@@ -674,35 +678,34 @@ export default function StageDesigner() {
         </div>
       )}
 
-      <label className="flex items-center gap-0.5 text-[8px] bg-gray-100 border border-gray-300 rounded-lg px-2 py-1 shrink-0">
-        <input type="checkbox" checked={gridSnap} onChange={(e) => setGridSnap(e.target.checked)} className="w-3 h-3" />
+      <label className="flex items-center gap-1 text-[11px] bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 shrink-0">
+        <input type="checkbox" checked={gridSnap} onChange={(e) => setGridSnap(e.target.checked)} className="w-4 h-4" />
         <span className="font-bold">Grid</span>
         {gridSnap && (
-          <input type="range" min="10" max="100" step="5" value={snapSize} onChange={(e) => setSnapSize(+e.target.value)} className="w-10 h-0.5" />
+          <input type="range" min="10" max="100" step="5" value={snapSize} onChange={(e) => setSnapSize(+e.target.value)} className="w-16 h-1" />
         )}
       </label>
 
-      <label className="flex items-center gap-0.5 text-[8px] bg-gray-100 border border-gray-300 rounded-lg px-2 py-1 shrink-0">
-        <input type="checkbox" checked={stageScrollEnabled} onChange={(e) => setStageScrollEnabled(e.target.checked)} className="w-3 h-3" />
+      <label className="flex items-center gap-1 text-[11px] bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 shrink-0">
+        <input type="checkbox" checked={stageScrollEnabled} onChange={(e) => setStageScrollEnabled(e.target.checked)} className="w-4 h-4" />
         <span className="font-bold">Stage Scroll</span>
       </label>
 
-      <label className="flex items-center gap-0.5 text-[8px] bg-gray-100 border border-gray-300 rounded-lg px-2 py-1 shrink-0">
+      <label className="flex items-center gap-1 text-[11px] bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 shrink-0">
         <span className="font-bold">Zoom</span>
-        <input type="range" min="0.4" max="2" step="0.05" value={userZoom} onChange={(e) => setUserZoom(Number(e.target.value))} className="w-20 h-0.5" />
-        <span className="text-[8px] font-semibold">{Math.round(userZoom * 100)}%</span>
+        <input type="range" min="0.4" max="2" step="0.05" value={userZoom} onChange={(e) => setUserZoom(Number(e.target.value))} className="w-24 h-1" />
+        <span className="text-[10px] font-semibold">{Math.round(userZoom * 100)}%</span>
       </label>
 
-      <div className="flex items-center gap-0.5 text-[7px] md:text-[8px] font-bold text-gray-600 bg-purple-50 border border-purple-200 rounded-lg px-2 py-1 shrink-0" style={HEADER_PATTERN}>
-        <label className="flex items-center gap-0.5">W<input type="number" value={widthFt} onChange={e => setWidthFt(+e.target.value)} className="w-6 md:w-8 border rounded px-1 py-0.5 text-center text-[7px]" /></label>
-        <label className="flex items-center gap-0.5">H<input type="number" value={heightFt} onChange={e => setHeightFt(+e.target.value)} className="w-6 md:w-8 border rounded px-1 py-0.5 text-center text-[7px]" /></label>
-        <label className="flex items-center gap-0.5">Wall<input type="number" value={wallFt} onChange={e => setWallFt(+e.target.value)} className="w-6 md:w-7 border rounded px-1 py-0.5 text-center text-[7px]" /></label>
-        <label className="flex items-center gap-0.5">Floor<input type="number" value={floorDepthFt} onChange={e => setFloorDepthFt(+e.target.value)} className="w-6 md:w-7 border rounded px-1 py-0.5 text-center text-[7px]" /></label>
-        <select value={floorTexture.id} onChange={(e) => setFloorTexture(FLOOR_TEXTURES.find(t => t.id === e.target.value))} className="bg-white border rounded px-1 py-0.5 text-[7px]">
+      <div className="flex items-center gap-0.5 text-[11px] md:text-[12px] font-bold text-gray-600 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2 shrink-0" style={HEADER_PATTERN}>
+        <label className="flex items-center gap-1">W<input type="number" value={widthFt} onChange={e => setWidthFt(+e.target.value)} className="w-10 md:w-12 border rounded px-2 py-1 text-center text-[9px]" /></label>
+        <label className="flex items-center gap-1">H<input type="number" value={heightFt} onChange={e => setHeightFt(+e.target.value)} className="w-10 md:w-12 border rounded px-2 py-1 text-center text-[9px]" /></label>
+        <label className="flex items-center gap-1">Wall<input type="number" value={wallFt} onChange={e => setWallFt(+e.target.value)} className="w-10 md:w-12 border rounded px-2 py-1 text-center text-[9px]" /></label>
+        <label className="flex items-center gap-1">Floor<input type="number" value={floorDepthFt} onChange={e => setFloorDepthFt(+e.target.value)} className="w-10 md:w-12 border rounded px-2 py-1 text-center text-[9px]" /></label>
+        <select value={floorTexture.id} onChange={(e) => setFloorTexture(FLOOR_TEXTURES.find(t => t.id === e.target.value))} className="bg-white border rounded px-2 py-1 text-[9px]">
           {FLOOR_TEXTURES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
         </select>
       </div>
-      <button onClick={exportStageAsImage} className="px-3 md:px-4 py-1 md:py-1.5 bg-blue-600 text-white rounded-full text-[9px] md:text-[10px] font-bold shadow-md hover:bg-blue-700 transition-all whitespace-nowrap shrink-0">Download</button>
     </div>
   );
   // Sidebar Content
@@ -857,8 +860,8 @@ export default function StageDesigner() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '3px solid #000',
-            boxShadow: '0 0 0 3px rgba(0,0,0,0.35)'
+            border: 'none',
+            boxShadow: 'none'
           }} 
           className="relative" 
           onClick={() => {
@@ -868,7 +871,7 @@ export default function StageDesigner() {
         >
         <div className="absolute inset-0 pointer-events-none flex flex-col items-center" style={{overflow: 'hidden'}}>
           <div className="flex items-start">
-            <div style={{ width: wallPx, height: stageHeight, transform: 'rotateY(60deg) translateX(20px)', transformOrigin: 'right', backgroundColor: '#9ca3af', backfaceVisibility: 'hidden' }} className={`${isMobile ? 'border-none' : 'border-r-4 border-black'} opacity-100 shadow-2xl`} />
+            <div style={{ width: wallPx, height: stageHeight, transform: 'rotateY(60deg) translateX(20px)', transformOrigin: 'right', backgroundColor: '#9ca3af', backfaceVisibility: 'hidden' }} className="border-none opacity-100 shadow-2xl" />
             <div style={{ 
               width: stageWidth, 
               height: stageHeight, 
@@ -877,8 +880,8 @@ export default function StageDesigner() {
                 const c = lightingColorFor(lightingPreset, lightingIntensity);
                 return c ? `linear-gradient(rgba(0,0,0,0), ${c})` : 'none';
               })()
-            }} className={`${isMobile ? 'border-none' : 'border-4 border-black'} shadow-md z-[0] overflow-hidden relative`} />
-            <div style={{ width: wallPx, height: stageHeight, transform: 'rotateY(-60deg) translateX(-20px)', transformOrigin: 'left', backgroundColor: '#9ca3af', backfaceVisibility: 'hidden' }} className={`${isMobile ? 'border-none' : 'border-l-4 border-black'} opacity-90 shadow-2xl`} />
+            }} className="border-none shadow-md z-[0] overflow-hidden relative" />
+            <div style={{ width: wallPx, height: stageHeight, transform: 'rotateY(-60deg) translateX(-20px)', transformOrigin: 'left', backgroundColor: '#9ca3af', backfaceVisibility: 'hidden' }} className="border-none opacity-90 shadow-2xl" />
           </div>
           
           <div style={{ 
@@ -890,7 +893,7 @@ export default function StageDesigner() {
             backgroundImage: floorTexture.pattern ? `linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)` : 'none',
             backgroundSize: '25px 25px',
             opacity: 0.8
-          }} className={`${isMobile ? 'border-none' : 'border-t-4 border-black'} shadow-inner relative`} />
+          }} className="border-none shadow-inner relative" />
         </div>
 
         {/* GRID OVERLAY */}
